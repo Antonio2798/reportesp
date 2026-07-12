@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>SISTEMA DE REPORTES PROCESOS</title>
-    <!-- Bootstrap solo para el contenido del reporte -->
+  
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
         :root {
@@ -22,7 +22,7 @@
             user-select: none;
         }
 
-        /* Escritorio e Iconos */
+       
         #desktop { width: 100%; height: calc(100vh - 40px); position: relative; }
 
         .icon {
@@ -37,7 +37,9 @@
 
         
         .window {
-            width: 500px; position: absolute;
+            width: 800px; 
+            position: absolute;
+            max-width: 95vw;
             background: var(--win-bg);
             border: 2px solid #dfdfdf;
             border-right-color: #000; border-bottom-color: #000;
@@ -81,12 +83,12 @@
 <body>
 
 <div id="desktop">
-    <!-- Iconos Existentes -->
+  
     <div class="icon" id="icon-settings" style="top: 20px; left: 20px;" onclick="openApp('settings')">
         <span>⚙️</span><div class="icon-label">Ajustes</div>
     </div>
 
-    <!-- NUEVO Icono Reporte Atún -->
+    
     <div class="icon" id="icon-atun" style="top: 20px; left: 110px;" onclick="openApp('atunWindow')">
         <span>🐟</span><div class="icon-label">Reporte Atún</div>
     </div>
@@ -96,7 +98,7 @@
     <div class="icon-label">Reporte Venta Local</div>
 </div>
 
-<!-- VENTANA: REPORTE DE ATÚN -->
+
 <div class="window" id="atunWindow" style="width: 800px; top: 50px; left: 100px;">
     <div class="window-header">
         <span>Reporte Diario de Atún</span>
@@ -122,7 +124,7 @@
                 </div>
             </div>
 
-            <!-- Venta Local -->
+           
             <div class="card mb-3">
                 <div class="header-blue">LIQUIDACION VENTA LOCAL</div>
                 <div class="table-responsive">
@@ -136,7 +138,6 @@
                 <button class="btn btn-outline-primary btn-sm m-2" onclick="agregarFila('tablaLocal')">+ Añadir Fila</button>
             </div>
 
-            <!-- Exportación -->
             <div class="card mb-3">
                 <div class="header-blue">LIQUIDACION ATUN EXPORTACION</div>
                 <div class="p-2">
@@ -228,7 +229,6 @@
 
 <div class="taskbar" id="taskbar"></div>
 
-<!-- SCRIPTS -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
 <script type="module">
@@ -414,13 +414,21 @@ window.exportarLocalSYS = async function() {
         const win = document.getElementById(id);
         win.style.display = 'flex';
         win.style.zIndex = ++highestZ;
+
+        // Centrar automáticamente en móviles si no se ha movido
+        if (window.innerWidth < 768) {
+            win.style.left = "2.5vw";
+            win.style.top = "10px";
+        }
+
         if(id === 'atunWindow') {
             const hoy = new Date().toISOString().split('T')[0];
             document.getElementById('fechaPrincipal').value = hoy;
-            window.cargarDatosPorFecha();
+            if(window.cargarDatosPorFecha) window.cargarDatosPorFecha();
         }
         updateTaskbar();
     }
+
 
     function closeApp(id) {
         document.getElementById(id).style.display = 'none';
@@ -480,19 +488,43 @@ window.exportarLocalSYS = async function() {
         });
     }
 
-    // Draggable simple
     document.querySelectorAll('.window').forEach(win => {
         const header = win.querySelector('.window-header');
-        header.onmousedown = (e) => {
+        let isDragging = false;
+        let offset = { x: 0, y: 0 };
+
+        function startDragging(e) {
+            isDragging = true;
             win.style.zIndex = ++highestZ;
-            let shiftX = e.clientX - win.getBoundingClientRect().left;
-            let shiftY = e.clientY - win.getBoundingClientRect().top;
-            document.onmousemove = (e) => {
-                win.style.left = e.clientX - shiftX + 'px';
-                win.style.top = e.clientY - shiftY + 'px';
-            };
-            document.onmouseup = () => { document.onmousemove = null; };
-        };
+            const clientX = e.type === 'touchstart' ? e.touches[0].clientX : e.clientX;
+            const clientY = e.type === 'touchstart' ? e.touches[0].clientY : e.clientY;
+            
+            offset.x = clientX - win.offsetLeft;
+            offset.y = clientY - win.offsetTop;
+            
+            document.addEventListener(e.type === 'touchstart' ? 'touchmove' : 'mousemove', drag);
+            document.addEventListener(e.type === 'touchstart' ? 'touchend' : 'mouseup', stopDragging);
+        }
+
+        function drag(e) {
+            if (!isDragging) return;
+            const clientX = e.type === 'touchmove' ? e.touches[0].clientX : e.clientX;
+            const clientY = e.type === 'touchmove' ? e.touches[0].clientY : e.clientY;
+            
+            win.style.left = (clientX - offset.x) + 'px';
+            win.style.top = (clientY - offset.y) + 'px';
+        }
+
+        function stopDragging(e) {
+            isDragging = false;
+            document.removeEventListener('mousemove', drag);
+            document.removeEventListener('mouseup', stopDragging);
+            document.removeEventListener('touchmove', drag);
+            document.removeEventListener('touchend', stopDragging);
+        }
+
+        header.addEventListener('mousedown', startDragging);
+        header.addEventListener('touchstart', startDragging, { passive: true });
     });
 
     function changeBg(input) {
